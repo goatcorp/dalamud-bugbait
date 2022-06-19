@@ -54,6 +54,7 @@ async function handleRequest(request) {
 
 async function sendWebHook(content, name, version, reporter, exception, dhash) {
   let body = {
+    "content": "User feedback: " + name,
     "embeds": [
       {
         "title": "Feedback for " + name,
