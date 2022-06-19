@@ -19,7 +19,7 @@ async function readRequestBody(request) {
 }
 
 function checkForbidden(input) {
-  return input.includes("@everyone") || input.includes("@here") || input.includes("@<");
+  return input.includes("@everyone") || input.includes("@here") || input.includes("<@");
 }
 
 async function handleRequest(request) {
