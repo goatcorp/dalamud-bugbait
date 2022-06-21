@@ -1,10 +1,17 @@
-const { Configuration, OpenAIApi } = require("openai");
-
 /**
- * readRequestBody reads in the incoming request body
- * Use await readRequestBody(..) in an async function to get the string
- * @param {Request} request the incoming request to read from
+ * Welcome to Cloudflare Workers! This is your first worker.
+ *
+ * - Run `npx wrangler dev src/index.js` in your terminal to start a development server
+ * - Open a browser tab at http://localhost:8787/ to see your worker in action
+ * - Run `npx wrangler publish src/index.js --name my-worker` to publish your worker
+ *
+ * Learn more at https://developers.cloudflare.com/workers/
  */
+
+//const { Configuration, OpenAIApi } = require("openai");
+
+import { OpenAIApi, Configuration } from "openai";
+
 async function readRequestBody(request) {
   const { headers } = request
   const contentType = headers.get("content-type") || ""
@@ -12,8 +19,7 @@ async function readRequestBody(request) {
   if (contentType.includes("application/json")) {
     return await request.json();
   }
-  else
-  {
+  else {
     return null;
   }
 }
@@ -25,35 +31,29 @@ function checkForbidden(input) {
 async function handleRequest(request) {
   const reqBody = await readRequestBody(request)
 
-  if (!reqBody)
-  {
-    return new Response(`no body`, {status: 400});
+  if (!reqBody) {
+    return new Response(`no body`, { status: 400 });
   }
 
-  if (!reqBody.content || !reqBody.version || !reqBody.name || !reqBody.dhash )
-  {
-    return new Response(`no content`, {status: 400});
+  if (!reqBody.content || !reqBody.version || !reqBody.name || !reqBody.dhash) {
+    return new Response(`no content`, { status: 400 });
   }
 
-  if (checkForbidden(reqBody.content) || checkForbidden(reqBody.name) || checkForbidden(reqBody.version) || checkForbidden(reqBody.dhash))
-  {
-    return new Response(`You are in violation of the following internatiÿÿÿÿ`, {status: 451});
+  if (checkForbidden(reqBody.content) || checkForbidden(reqBody.name) || checkForbidden(reqBody.version) || checkForbidden(reqBody.dhash)) {
+    return new Response(`You are in violation of the following internatiÿÿÿÿ`, { status: 451 });
   }
 
   let res = await sendWebHook(reqBody.content, reqBody.name, reqBody.version, reqBody.reporter, reqBody.exception, reqBody.dhash);
   console.log(res);
-  if (res == true)
-  {
+  if (res == true) {
     return new Response();
   }
-  else
-  {
-    return new Response(`dispatch failed`, {status: 400});
+  else {
+    return new Response(`dispatch failed`, { status: 400 });
   }
 }
 
-async function condenseText(body)
-{
+async function condenseText(body) {
   const configuration = new Configuration({
     apiKey: OPENAI_TOKEN,
   });
@@ -73,8 +73,7 @@ async function condenseText(body)
 
 async function sendWebHook(content, name, version, reporter, exception, dhash) {
   var condensed = "User Feedback";
-  if(content.length > 100)
-  {
+  if (content.length > 100) {
     condensed = await condenseText(content);
   }
 
@@ -102,19 +101,17 @@ async function sendWebHook(content, name, version, reporter, exception, dhash) {
     ]
   };
 
-  if (reporter && !checkForbidden(reporter))
-  {
-      body.embeds[0].author = {
-          "name": reporter
-      };
+  if (reporter && !checkForbidden(reporter)) {
+    body.embeds[0].author = {
+      "name": reporter
+    };
   }
 
-  if (exception && !checkForbidden(exception))
-  {
+  if (exception && !checkForbidden(exception)) {
     body.embeds[0].fields[1] = {
-          "name": "Exception",
-          "value": "```" + exception.substring(0, 950) + "```"
-      };
+      "name": "Exception",
+      "value": "```" + exception.substring(0, 950) + "```"
+    };
   }
 
   const init = {
@@ -131,14 +128,13 @@ async function sendWebHook(content, name, version, reporter, exception, dhash) {
   return response.status === 204;
 }
 
-addEventListener("fetch", event => {
-  const { request } = event
-  const { url } = request
-
-  if (request.method === "POST") {
-    return event.respondWith(handleRequest(request))
-  }
-  else if (request.method === "GET") {
-    return event.respondWith(new Response(`unsupported`, {status: 400}))
-  }
-})
+export default {
+  async fetch(request) {
+    if (request.method === "POST") {
+      return handleRequest(request);
+    }
+    else if (request.method === "GET") {
+      return new Response(`unsupported`, { status: 400 });
+    }
+  },
+};
