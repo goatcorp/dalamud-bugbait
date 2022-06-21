@@ -59,11 +59,11 @@ async function condenseText(body)
   });
   const openai = new OpenAIApi(configuration);
 
-  const body = `The following is user feedback:\n\n${body}\n\nPlease summarise it as one line.\n`
+  const prompt = `The following is user feedback:\n\n${body}\n\nPlease summarise it as one line.\n`
 
   const completion = await openai.createCompletion({
     model: "text-davinci-002",
-    prompt: body,
+    prompt: prompt,
     temperature: 0.7,
     max_tokens: 256,
   });
