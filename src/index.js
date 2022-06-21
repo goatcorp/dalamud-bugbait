@@ -11,6 +11,7 @@
 //const { Configuration, OpenAIApi } = require("openai");
 
 import { OpenAIApi, Configuration } from "openai";
+import { fetchAdapter } from "@vespaiach/axios-fetch-adapter";
 
 async function readRequestBody(request) {
   const { headers } = request
@@ -66,6 +67,9 @@ async function condenseText(body, token) {
     prompt: prompt,
     temperature: 0.7,
     max_tokens: 256,
+  },
+  {
+    adapter: fetchAdapter,
   });
 
   return completion.data.choices[0].text;
