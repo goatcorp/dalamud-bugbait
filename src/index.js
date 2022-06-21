@@ -8,10 +8,8 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
-//const { Configuration, OpenAIApi } = require("openai");
-
 import { OpenAIApi, Configuration } from "openai";
-import { fetchAdapter } from "@vespaiach/axios-fetch-adapter";
+import fetchAdapter from "@vespaiach/axios-fetch-adapter";
 
 async function readRequestBody(request) {
   const { headers } = request
