@@ -19,5 +19,7 @@ jobs:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           secrets: |
               DEFAULT_WEBHOOK
+              OPENAI_TOKEN
         env:
           DEFAULT_WEBHOOK: ${{ secrets.DEFAULT_WEBHOOK }}
+          OPENAI_TOKEN: ${{ secrets.OPENAI_TOKEN }}
