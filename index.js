@@ -1,4 +1,4 @@
-// pooped
+const { Configuration, OpenAIApi } = require("openai");
 
 /**
  * readRequestBody reads in the incoming request body
@@ -52,9 +52,34 @@ async function handleRequest(request) {
   }
 }
 
+async function condenseText(body)
+{
+  const configuration = new Configuration({
+    apiKey: OPENAI_TOKEN,
+  });
+  const openai = new OpenAIApi(configuration);
+
+  const body = `The following is user feedback:\n\n${body}\n\nPlease summarise it as one line.\n`
+
+  const completion = await openai.createCompletion({
+    model: "text-davinci-002",
+    prompt: body,
+    temperature: 0.7,
+    max_tokens: 256,
+  });
+
+  return completion.data.choices[0].text;
+}
+
 async function sendWebHook(content, name, version, reporter, exception, dhash) {
+  var condensed = "User Feedback";
+  if(content.length > 100)
+  {
+    condensed = await condenseText(content);
+  }
+
   let body = {
-    "content": "User feedback: " + name,
+    "content": `${name}: ${condensed}`,
     "embeds": [
       {
         "title": "Feedback for " + name,
