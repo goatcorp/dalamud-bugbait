@@ -28,7 +28,7 @@ function checkForbidden(input) {
   return input.includes("@everyone") || input.includes("@here") || input.includes("<@");
 }
 
-async function handleRequest(request) {
+async function handleRequest(request, env) {
   const reqBody = await readRequestBody(request)
 
   if (!reqBody) {
@@ -43,7 +43,7 @@ async function handleRequest(request) {
     return new Response(`You are in violation of the following internatiÿÿÿÿ`, { status: 451 });
   }
 
-  let res = await sendWebHook(reqBody.content, reqBody.name, reqBody.version, reqBody.reporter, reqBody.exception, reqBody.dhash);
+  let res = await sendWebHook(reqBody.content, reqBody.name, reqBody.version, reqBody.reporter, reqBody.exception, reqBody.dhash, env);
   console.log(res);
   if (res == true) {
     return new Response();
@@ -53,9 +53,9 @@ async function handleRequest(request) {
   }
 }
 
-async function condenseText(body) {
+async function condenseText(body, token) {
   const configuration = new Configuration({
-    apiKey: OPENAI_TOKEN,
+    apiKey: token,
   });
   const openai = new OpenAIApi(configuration);
 
@@ -71,10 +71,10 @@ async function condenseText(body) {
   return completion.data.choices[0].text;
 }
 
-async function sendWebHook(content, name, version, reporter, exception, dhash) {
+async function sendWebHook(content, name, version, reporter, exception, dhash, env) {
   var condensed = "User Feedback";
   if (content.length > 100) {
-    condensed = await condenseText(content);
+    condensed = await condenseText(content, env.OPENAI_TOKEN);
   }
 
   let body = {
@@ -121,7 +121,7 @@ async function sendWebHook(content, name, version, reporter, exception, dhash) {
       "content-type": "application/json;charset=UTF-8",
     },
   }
-  const response = await fetch(DEFAULT_WEBHOOK, init)
+  const response = await fetch(env.DEFAULT_WEBHOOK, init)
 
   console.log(response);
 
@@ -129,9 +129,9 @@ async function sendWebHook(content, name, version, reporter, exception, dhash) {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     if (request.method === "POST") {
-      return handleRequest(request);
+      return handleRequest(request, env);
     }
     else if (request.method === "GET") {
       return new Response(`unsupported`, { status: 400 });
