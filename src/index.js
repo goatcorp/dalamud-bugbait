@@ -85,6 +85,7 @@ async function sendWebHook(content, name, version, reporter, exception, dhash, e
     {
       console.log("Couldn't condense text");
       console.log(e);
+      condensed = "Couldn't condense";
     }
   }
 
