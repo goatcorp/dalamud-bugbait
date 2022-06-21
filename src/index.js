@@ -76,7 +76,16 @@ async function condenseText(body, token) {
 async function sendWebHook(content, name, version, reporter, exception, dhash, env) {
   var condensed = "User Feedback";
   if (content.length > 100) {
-    condensed = await condenseText(content, env.OPENAI_TOKEN);
+    try 
+    {
+      condensed = await condenseText(content, env.OPENAI_TOKEN);
+      condensed = condensed.replace(/(\r\n|\n|\r)/gm, "");
+    }
+    catch(e)
+    {
+      console.log("Couldn't condense text");
+      console.log(e);
+    }
   }
 
   let body = {
@@ -124,9 +133,6 @@ async function sendWebHook(content, name, version, reporter, exception, dhash, e
     },
   }
   const response = await fetch(env.DEFAULT_WEBHOOK, init)
-
-  console.log(response);
-
   return response.status === 204;
 }
 
