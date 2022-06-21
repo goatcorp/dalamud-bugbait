@@ -1,18 +1,10 @@
 {
-  "private": true,
   "name": "dalamud-bugbait",
-  "version": "1.0.0",
-  "description": "A template for kick starting a Cloudflare Workers project",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "format": "prettier --write '**/*.{js,css,json,md}'"
-  },
-  "author": "goaaats <16760685+goaaats@users.noreply.github.com>",
-  "license": "MIT",
+  "version": "0.0.0",
   "devDependencies": {
-    "prettier": "^1.18.2"
+    "wrangler": "2.0.14"
   },
+  "private": true,
   "dependencies": {
     "openai": "^3.0.0"
   }

@@ -9,10 +9,10 @@ jobs:
     name: Deploy
     steps:
       - uses: actions/checkout@master
-      - name: Get wrangler.toml
-        run: 'echo "$WRANGLER_TOML" > wrangler.toml'
-        env:
-          WRANGLER_TOML: ${{secrets.WRANGLER_TOML}}
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - run: npm install
       - name: Publish
         uses: cloudflare/wrangler-action@2.0.0
         with:
