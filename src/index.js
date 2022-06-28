@@ -43,7 +43,7 @@ async function handleRequest(request, env) {
   }
 
   let res = await sendWebHook(reqBody.content, reqBody.name, reqBody.version, reqBody.reporter, reqBody.exception, reqBody.dhash, env);
-  console.log(res);
+  
   if (res == true) {
     return new Response();
   }
@@ -78,8 +78,11 @@ async function sendWebHook(content, name, version, reporter, exception, dhash, e
   if (content.length > 200) {
     try 
     {
-      condensed = await condenseText(content, env.OPENAI_TOKEN);
-      condensed = condensed.replace(/(\r\n|\n|\r)/gm, "");
+      const aiCondensed = await condenseText(content, env.OPENAI_TOKEN);
+      if (!checkForbidden(aiCondensed))
+      {
+        condensed = aiCondensed.replace(/(\r\n|\n|\r)/gm, "");
+      }
     }
     catch(e)
     {
@@ -91,6 +94,7 @@ async function sendWebHook(content, name, version, reporter, exception, dhash, e
 
   let body = {
     "content": `${name}: ${condensed}`,
+    "allowed_mentions": [],
     "embeds": [
       {
         "title": "Feedback for " + name,
