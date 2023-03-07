@@ -64,9 +64,9 @@ async function condenseText(body, token) {
   
   const fun = Math.random();
   if (fun <= 0.09)
-    prompt = "The following is user feedback for software. Please rewrite in the style of a Donald Trump tweet.";
+    prompt = "The following is user feedback for a video game plugin. Please rewrite in the style of a Donald Trump tweet.";
   else if (fun <= 0.04)
-    prompt = "The following is user feedback. Please rewrite it in the style of a speech by former US president Barack Obama.";
+    prompt = "The following is user feedback for a video game plugin. Please rewrite it in the style of a speech by former US president Barack Obama.";
 
   const compl = await openai.createChatCompletion({
     model: "gpt-3.5-turbo",
