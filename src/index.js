@@ -58,8 +58,32 @@ async function condenseText(body, token) {
   });
   const openai = new OpenAIApi(configuration);
 
-  const prompt = `The following is user feedback:\n\n${body}\n\nPlease summarise it as one line.\n`
+  //const prompt = `The following is user feedback:\n\n${body}\n\nPlease summarise it as one line.\n`
 
+  let prompt = "You are a chat bot dedicated to summarizing user feedback for software. Please summarize it in one line. If the feedback is in a language other than English, please translate it beforehand.";
+  if (Math.random() <= 0.05)
+    prompt = "The following is user feedback. Please rewrite it in the style of a speech by former US president Barack Obama.";
+
+  const compl = await openai.createChatCompletion({
+    model: "gpt-3.5-turbo",
+    messages: [
+      {
+        role: "system",
+        content: prompt
+      },
+      {
+        role: "user",
+        content: body
+      }
+    ]
+  },
+  {
+    adapter: fetchAdapter,
+  });
+
+  return compl.data.choices[0].message;
+
+  /*
   const completion = await openai.createCompletion({
     model: "text-davinci-002",
     prompt: prompt,
@@ -70,12 +94,13 @@ async function condenseText(body, token) {
     adapter: fetchAdapter,
   });
 
-  return completion.data.choices[0].text;
+    return completion.data.choices[0].text;
+  */
 }
 
 async function sendWebHook(content, name, version, reporter, exception, dhash, env) {
   var condensed = "User Feedback";
-  if (content.length > 200) {
+  if (content.length > 10) {
     try 
     {
       const aiCondensed = await condenseText(content, env.OPENAI_TOKEN);
