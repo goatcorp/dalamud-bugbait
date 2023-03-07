@@ -61,7 +61,11 @@ async function condenseText(body, token) {
   //const prompt = `The following is user feedback:\n\n${body}\n\nPlease summarise it as one line.\n`
 
   let prompt = "You are a chat bot dedicated to summarizing user feedback for software. Please summarize it in one line. If the feedback is in a language other than English, please translate it beforehand. Don't output anything but the summarized content.";
-  if (Math.random() <= 0.05)
+  
+  const fun = Math.random();
+  if (fun <= 0.09)
+    prompt = "The following is user feedback for software. Please rewrite in the style of a Donald Trump tweet.";
+  else if (fun <= 0.04)
     prompt = "The following is user feedback. Please rewrite it in the style of a speech by former US president Barack Obama.";
 
   const compl = await openai.createChatCompletion({
