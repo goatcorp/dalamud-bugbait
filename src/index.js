@@ -81,6 +81,7 @@ async function condenseText(body, token) {
     adapter: fetchAdapter,
   });
 
+  console.log(compl);
   return compl.data.choices[0].message;
 
   /*
