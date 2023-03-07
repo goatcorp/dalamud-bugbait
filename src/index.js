@@ -60,7 +60,7 @@ async function condenseText(body, token) {
 
   //const prompt = `The following is user feedback:\n\n${body}\n\nPlease summarise it as one line.\n`
 
-  let prompt = "You are a chat bot dedicated to summarizing user feedback for software. Please summarize it in one line. If the feedback is in a language other than English, please translate it beforehand.";
+  let prompt = "You are a chat bot dedicated to summarizing user feedback for software. Please summarize it in one line. If the feedback is in a language other than English, please translate it beforehand. Don't output anything but the summarized content.";
   if (Math.random() <= 0.05)
     prompt = "The following is user feedback. Please rewrite it in the style of a speech by former US president Barack Obama.";
 
