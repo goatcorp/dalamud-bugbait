@@ -105,7 +105,7 @@ async function condenseText(body, token) {
 
 async function sendWebHook(content, name, version, reporter, exception, dhash, env) {
   var condensed = "User Feedback";
-  if (content.length > 10) {
+  if (content.length > 10 && content.length < 1200) {
     try 
     {
       const aiCondensed = await condenseText(content, env.OPENAI_TOKEN);
