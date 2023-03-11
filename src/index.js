@@ -111,7 +111,7 @@ async function sendWebHook(content, name, version, reporter, exception, dhash, e
       const aiCondensed = await condenseText(content, env.OPENAI_TOKEN);
       if (!checkForbidden(aiCondensed))
       {
-        condensed = aiCondensed.replace(/(\r\n|\n|\r)/gm, "");
+        condensed = aiCondensed; //.replace(/(\r\n|\n|\r)/gm, "");
       }
     }
     catch(e)
