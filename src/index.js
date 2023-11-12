@@ -61,10 +61,6 @@ async function condenseText(body, token) {
   //const prompt = `The following is user feedback:\n\n${body}\n\nPlease summarise it as one line.\n`
 
   let prompt = "You are a chat bot dedicated to summarizing user feedback for software. Please summarize it in one line. If the feedback is in a language other than English, please translate it beforehand. Don't output anything but the summarized content and don't prefix the output with terms like \"Summary\" or \"Feedback\".";
-  
-  const fun = Math.random();
-  if (fun <= 0.07)
-    prompt = "The following is user feedback. Please rewrite it in the style of a verse of an eminem song.";
 
   const compl = await openai.createChatCompletion({
     model: "gpt-3.5-turbo",
