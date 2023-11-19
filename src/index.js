@@ -129,7 +129,7 @@ async function sendWebHook(content, name, version, reporter, exception, dhash, e
           "text": version,
         },
         "thumbnail": {
-          "url": "https://raw.githubusercontent.com/goatcorp/DalamudPlugins/api5/plugins/" + name + "/images/icon.png"
+          "url": "https://raw.githubusercontent.com/goatcorp/DalamudPluginsD17/main/stable/" + name + "/images/icon.png"
         },
         "fields": [
           {
