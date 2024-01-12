@@ -118,7 +118,9 @@ async function sendWebHook(content, name, version, reporter, exception, dhash, e
 
   let body = {
     "content": `${name}: ${condensed}`,
-    "allowed_mentions": [],
+    "allowed_mentions": {
+      "parse": []
+    },
     "embeds": [
       {
         "title": "Feedback for " + name,
