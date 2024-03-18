@@ -97,9 +97,11 @@ async function condenseText(body, token) {
   */
 }
 
+// This can be turned off if the account has run out of money or if some other issue has come up
+const AI_SUMMARY_ENABLED = false;
 async function sendWebHook(content, name, version, reporter, exception, dhash, env) {
   var condensed = "User Feedback";
-  if (content.length > 10 && content.length < 1200) {
+  if (AI_SUMMARY_ENABLED && content.length > 10 && content.length < 1200) {
     try 
     {
       const aiCondensed = await condenseText(content, env.OPENAI_TOKEN);
