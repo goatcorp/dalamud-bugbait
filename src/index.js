@@ -27,6 +27,51 @@ function checkForbidden(input) {
   return input.includes("@everyone") || input.includes("@here") || input.includes("<@");
 }
 
+// Each element in this array is a "test set", consisting of one or more tests to run again the received feedback.
+// If ANY test set passes, the feedback is silently dropped. A success response is returned to the client,
+// but the feedback in question is not actually sent out.
+// Test sets may be either a single value, or an array of one or more values.
+// - RegExp objects will be tested against the feedback sender string AS-IS (not forcibly made case-insensitive)
+// - Functions will be invoked with the ENTIRE feedback object, and should return TRUTHY to block the feedback
+// - Plain strings will be case-insensitively substring matched against the sender (and pass if they are found)
+// - Other values will be silently ignored, so as to not break everything
+// As an example, the following test sets are equivalent:
+// - "just feedback"
+// - /just feedback/ui
+// - (feedbackObject) => feedbackObject.reporter.toLowerCase().includes("just feedback")
+// - [ "just feedback" ]
+// - [ /just feedback/ui ]
+// - [ (feedbackObject) => feedbackObject.reporter.toLowerCase().includes("just feedback") ]
+// The test set `[ "just", "feedback" ]` is NOT equivalent, since it would also match sender names such as
+// "this is just some feedback", but it WOULD also match any sender name that the above examples match.
+// For complex test functions, the feedback object contains these properties:
+// - content (message body)
+// - name (plugin name)
+// - version (plugin version)
+// - reporter (contact details)
+// - exception (C# stack trace) [optional]
+// - dhash (dalamud version hash)
+const SILENT_FEEDBACK_BLOCK_TESTS = [
+  ["just", "feedback"],
+  /^\s*feedback\s*$/ui,
+];
+function isFeedbackSilentlyIgnored(feedbackObject) {
+  const runSingleTest = (fb, test) => {
+    if (typeof test == "function")
+      return test(fb);
+    if (typeof test == "string")
+      return fb.reporter.toLowerCase().includes(test);
+    if (RegExp.prototype.isPrototypeOf(test))
+      return test.test(fb.reporter);
+    return false; // invalid test types are silently ignored and do not "pass"
+  };
+  return SILENT_FEEDBACK_BLOCK_TESTS.some(testSet => {
+    if (Array.isArray(testSet))
+      return testSet.every(t => runSingleTest(feedbackObject, t));
+    return runSingleTest(feedbackObject, testSet);
+  });
+}
+
 async function handleRequest(request, env) {
   const reqBody = await readRequestBody(request)
 
@@ -40,6 +85,10 @@ async function handleRequest(request, env) {
 
   if (checkForbidden(reqBody.content) || checkForbidden(reqBody.name) || checkForbidden(reqBody.version) || checkForbidden(reqBody.dhash)) {
     return new Response(`You are in violation of the following internatiÿÿÿÿ`, { status: 451 });
+  }
+
+  if (isFeedbackSilentlyIgnored(reqBody)) {
+    return new Response();
   }
 
   let res = await sendWebHook(reqBody.content, reqBody.name, reqBody.version, reqBody.reporter, reqBody.exception, reqBody.dhash, env);
