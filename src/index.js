@@ -178,16 +178,19 @@ async function sendWebHook(content, name, version, reporter, exception, dhash, e
         "description": content,
         "color": 11289400,
         "timestamp": new Date().toISOString(),
-        "footer": {
-          "text": version,
-        },
         "thumbnail": {
           "url": "https://raw.githubusercontent.com/goatcorp/DalamudPluginsD17/main/stable/" + name + "/images/icon.png"
         },
         "fields": [
           {
-            "name": "Dalamud commit#",
-            "value": dhash
+            "name": "Plugin Version",
+            "value": version,
+            "inline": true
+          },
+          {
+            "name": "Dalamud Version",
+            "value": dhash,
+            "inline": true
           }
         ]
       }
