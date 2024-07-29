@@ -10,6 +10,7 @@
 
 import { OpenAIApi, Configuration } from "openai";
 import fetchAdapter from "@vespaiach/axios-fetch-adapter";
+import "crypto" from "crypto"
 
 async function readRequestBody(request) {
   const { headers } = request
@@ -25,6 +26,20 @@ async function readRequestBody(request) {
 
 function checkForbidden(input) {
   return input.includes("@everyone") || input.includes("@here") || input.includes("<@");
+}
+
+function getHashedIp(request, env) {
+  var ipAddr = request.headers.get('cf-connecting-ip');
+  if (ipAddr == null) {
+    return null;
+  }
+
+  const secret = env.get('AVATAR_PEPPER') || "A_Really_Bad_Pepper_95CCD5A2A352";
+  return crypto.createHash('sha256').update(`BUGBAIT{user=${ipAddr},secret=${secret}}`).digest('hex').slice(-8);
+}
+
+function getAvatarUrl(seed) {
+  return `https://api.dicebear.com/9.x/identicon/png?size=64&backgroundType=gradientLinear&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&seed=${seed}`;
 }
 
 // Each element in this array is a "test set", consisting of one or more tests to run again the received feedback.
@@ -91,7 +106,16 @@ async function handleRequest(request, env) {
     return new Response();
   }
 
-  let res = await sendWebHook(reqBody.content, reqBody.name, reqBody.version, reqBody.reporter, reqBody.exception, reqBody.dhash, env);
+  let res = await sendWebHook(
+    reqBody.content, 
+    reqBody.name, 
+    reqBody.version, 
+    reqBody.reporter, 
+    getHashedIp(request, env), 
+    reqBody.exception, 
+    reqBody.dhash, 
+    env
+  );
   
   if (res == true) {
     return new Response();
@@ -148,7 +172,7 @@ async function condenseText(body, token) {
 
 // This can be turned off if the account has run out of money or if some other issue has come up
 const AI_SUMMARY_ENABLED = false;
-async function sendWebHook(content, name, version, reporter, exception, dhash, env) {
+async function sendWebHook(content, name, version, reporter, reporterId, exception, dhash, env) {
   var condensed = "User Feedback";
   if (AI_SUMMARY_ENABLED && content.length > 10 && content.length < 1200) {
     try 
@@ -178,6 +202,7 @@ async function sendWebHook(content, name, version, reporter, exception, dhash, e
         "description": content,
         "color": 11289400,
         "timestamp": new Date().toISOString(),
+        "author": { }
         "footer": {
           "text": version,
         },
@@ -195,9 +220,13 @@ async function sendWebHook(content, name, version, reporter, exception, dhash, e
   };
 
   if (reporter && !checkForbidden(reporter)) {
-    body.embeds[0].author = {
-      "name": reporter
-    };
+    body.embeds[0].author["name"] = reporter;
+  } else if (reporterIp != null) {
+    body.embeds[0].author["name"] = `Anonymous Reporter ${reporterIp}`;
+  }
+
+  if (reporterIp != null) {
+    body.embeds[0].author["icon_url"] = getAvatarUrl(reporterIp);
   }
 
   if (exception && !checkForbidden(exception)) {
