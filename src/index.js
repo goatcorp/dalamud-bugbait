@@ -54,6 +54,8 @@ function checkForbidden(input) {
 const SILENT_FEEDBACK_BLOCK_TESTS = [
   ["just", "feedback"],
   /^\s*feedback\s*$/ui,
+  /^\s*\.+\s*$/u, // ".", "...", etc
+  /^\s*-?n\/?a-?\s*$/ui, // "na", "-na", "n/a", "-n/a", etc
 ];
 function isFeedbackSilentlyIgnored(feedbackObject) {
   const runSingleTest = (fb, test) => {
