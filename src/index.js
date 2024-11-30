@@ -69,6 +69,8 @@ function getAvatarUrl(seed) {
 const SILENT_FEEDBACK_BLOCK_TESTS = [
   ["just", "feedback"],
   /^\s*feedback\s*$/ui,
+  /^\s*\.+\s*$/u, // ".", "...", etc
+  /^\s*-?n\/?a-?\s*$/ui, // "na", "-na", "n/a", "-n/a", etc
 ];
 function isFeedbackSilentlyIgnored(feedbackObject) {
   const runSingleTest = (fb, test) => {
@@ -202,17 +204,19 @@ async function sendWebHook(content, name, version, reporter, reporterId, excepti
         "description": content,
         "color": 11289400,
         "timestamp": new Date().toISOString(),
-        "author": { }
-        "footer": {
-          "text": version,
-        },
         "thumbnail": {
           "url": "https://raw.githubusercontent.com/goatcorp/DalamudPluginsD17/main/stable/" + name + "/images/icon.png"
         },
         "fields": [
           {
-            "name": "Dalamud commit#",
-            "value": dhash
+            "name": "Plugin Version",
+            "value": version,
+            "inline": true
+          },
+          {
+            "name": "Dalamud Version",
+            "value": dhash,
+            "inline": true
           }
         ]
       }
