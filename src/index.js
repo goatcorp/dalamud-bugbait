@@ -8,33 +8,32 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
-import { OpenAIApi, Configuration } from "openai";
+import {OpenAIApi, Configuration} from "openai";
 import fetchAdapter from "@vespaiach/axios-fetch-adapter";
 
 async function readRequestBody(request) {
-    const { headers } = request
-    const contentType = headers.get("content-type") || ""
+  const {headers} = request
+  const contentType = headers.get("content-type") || ""
 
-    if (contentType.includes("application/json")) {
-        return await request.json();
-    }
-    else {
-        return null;
-    }
+  if (contentType.includes("application/json")) {
+    return await request.json();
+  } else {
+    return null;
+  }
 }
 
 async function getPluginMetadata(name) {
-    let response = await fetch(`https://kamori.goats.dev/Plugin/Plugin/${name}`);
+  let response = await fetch(`https://kamori.goats.dev/Plugin/Plugin/${name}`);
 
-    if (response.status !== 200) {
-        return null;
-    }
+  if (response.status !== 200) {
+    return null;
+  }
 
-    return await response.json();
+  return await response.json();
 }
 
 function checkForbidden(input) {
-    return input.includes("@everyone") || input.includes("@here") || input.includes("<@");
+  return input.includes("@everyone") || input.includes("@here") || input.includes("<@");
 }
 
 // Each element in this array is a "test set", consisting of one or more tests to run again the received feedback.
@@ -62,198 +61,212 @@ function checkForbidden(input) {
 // - exception (C# stack trace) [optional]
 // - dhash (dalamud version hash)
 const SILENT_FEEDBACK_BLOCK_TESTS = [
-    ["just", "feedback"],
-    /^\s*feedback\s*$/ui,
-    /^\s*\.+\s*$/u, // ".", "...", etc
-    /^\s*-?n\/?a-?\s*$/ui, // "na", "-na", "n/a", "-n/a", etc
+  ["just", "feedback"],
+  /^\s*feedback\s*$/ui,
+  /^\s*\.+\s*$/u, // ".", "...", etc
+  /^\s*-?n\/?a-?\s*$/ui, // "na", "-na", "n/a", "-n/a", etc
 ];
+
 function isFeedbackSilentlyIgnored(feedbackObject) {
-    const runSingleTest = (fb, test) => {
-        if (typeof test == "function")
-            return test(fb);
-        if (typeof test == "string")
-            return fb.reporter.toLowerCase().includes(test);
-        if (RegExp.prototype.isPrototypeOf(test))
-            return test.test(fb.reporter);
-        return false; // invalid test types are silently ignored and do not "pass"
-    };
-    return SILENT_FEEDBACK_BLOCK_TESTS.some(testSet => {
-        if (Array.isArray(testSet))
-            return testSet.every(t => runSingleTest(feedbackObject, t));
-        return runSingleTest(feedbackObject, testSet);
-    });
+  const runSingleTest = (fb, test) => {
+    if (typeof test == "function")
+      return test(fb);
+    if (typeof test == "string")
+      return fb.reporter.toLowerCase().includes(test);
+    if (RegExp.prototype.isPrototypeOf(test))
+      return test.test(fb.reporter);
+    return false; // invalid test types are silently ignored and do not "pass"
+  };
+  return SILENT_FEEDBACK_BLOCK_TESTS.some(testSet => {
+    if (Array.isArray(testSet))
+      return testSet.every(t => runSingleTest(feedbackObject, t));
+    return runSingleTest(feedbackObject, testSet);
+  });
 }
 
 async function handleRequest(request, env) {
-    const reqBody = await readRequestBody(request)
+  const reqBody = await readRequestBody(request)
 
-    if (!reqBody) {
-        return new Response(`no body`, { status: 400 });
+  if (!reqBody) {
+    return new Response(`no body`, {status: 400});
+  }
+
+  // we can only accept/process mainline plugins.
+  let pluginMetadata = await getPluginMetadata(reqBody.name);
+  if (pluginMetadata == null) {
+    return new Response(`plugin not found`, {status: 404});
+  }
+
+  if (!pluginMetadata.AcceptsFeedback) {
+    return new Response(`plugin does not accept feedback`, {status: 403});
+  }
+
+  // proxy the request to the plugin's server for processing, if defined.
+  if (pluginMetadata.FeedbackUrl != null) {
+    const init = {
+      body: JSON.stringify(reqBody),
+      method: "POST",
+      headers: {
+        "content-type": "application/json;charset=UTF-8",
+      },
     }
 
-    if (!reqBody.content || !reqBody.version || !reqBody.name || !reqBody.dhash) {
-        return new Response(`no content`, { status: 400 });
+    const proxied = await fetch(pluginMetadata.FeedbackUrl, init);
+    if (proxied.status >= 200 && proxied.status < 300) {
+      return new Response();
+    } else {
+      return new Response(`proxy dispatch failed`, {status: 400});
     }
+  }
 
-    if (checkForbidden(reqBody.content) || checkForbidden(reqBody.name) || checkForbidden(reqBody.version) || checkForbidden(reqBody.dhash)) {
-        return new Response(`You are in violation of the following internatiÿÿÿÿ`, { status: 451 });
-    }
+  // once we're sure it's not some other service's responsibility, we can validate it and send it to our discord.
+  if (!reqBody.content || !reqBody.version || !reqBody.name || !reqBody.dhash) {
+    return new Response(`no content`, {status: 400});
+  }
 
-    if (isFeedbackSilentlyIgnored(reqBody)) {
-        return new Response();
-    }
+  if (checkForbidden(reqBody.content) || checkForbidden(reqBody.name) || checkForbidden(reqBody.version) || checkForbidden(reqBody.dhash)) {
+    return new Response(`You are in violation of the following internatiÿÿÿÿ`, {status: 451});
+  }
 
-    let pluginMetadata = await getPluginMetadata(reqBody.name);
-    if (pluginMetadata == null) {
-        return new Response(`plugin not found`, { status: 404 });
-    }
+  if (isFeedbackSilentlyIgnored(reqBody)) {
+    return new Response();
+  }
 
-    if (!pluginMetadata.AcceptsFeedback) {
-        return new Response(`plugin does not accept feedback`, { status: 403 });
-    }
+  let discordResponse = await sendWebHook(reqBody, pluginMetadata, env);
 
-    let res = await sendWebHook(reqBody, pluginMetadata, env);
-
-    if (res === true) {
-        return new Response();
-    }
-    else {
-        return new Response(`dispatch failed`, { status: 400 });
-    }
+  if (discordResponse === true) {
+    return new Response();
+  } else {
+    return new Response(`dispatch failed`, {status: 400});
+  }
 }
 
 async function condenseText(body, token) {
-    const configuration = new Configuration({
-        apiKey: token,
-    });
-    const openai = new OpenAIApi(configuration);
+  const configuration = new Configuration({
+    apiKey: token,
+  });
+  const openai = new OpenAIApi(configuration);
 
-    //const prompt = `The following is user feedback:\n\n${body}\n\nPlease summarise it as one line.\n`
+  //const prompt = `The following is user feedback:\n\n${body}\n\nPlease summarise it as one line.\n`
 
-    let prompt = "You are a chat bot dedicated to summarizing user feedback for software. Please summarize it in one line. If the feedback is in a language other than English, please translate it beforehand. Don't output anything but the summarized content and don't prefix the output with terms like \"Summary\" or \"Feedback\".";
+  let prompt = "You are a chat bot dedicated to summarizing user feedback for software. Please summarize it in one line. If the feedback is in a language other than English, please translate it beforehand. Don't output anything but the summarized content and don't prefix the output with terms like \"Summary\" or \"Feedback\".";
 
-    const compl = await openai.createChatCompletion({
-            model: "gpt-3.5-turbo",
-            messages: [
-                {
-                    role: "system",
-                    content: prompt
-                },
-                {
-                    role: "user",
-                    content: body
-                }
-            ]
+  const compl = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: prompt
         },
         {
-            adapter: fetchAdapter,
-        });
-
-    //console.log(compl);
-    return compl.data.choices[0].message.content;
-
-    /*
-    const completion = await openai.createCompletion({
-      model: "text-davinci-002",
-      prompt: prompt,
-      temperature: 0.7,
-      max_tokens: 256,
+          role: "user",
+          content: body
+        }
+      ]
     },
     {
       adapter: fetchAdapter,
     });
 
-      return completion.data.choices[0].text;
-    */
+  //console.log(compl);
+  return compl.data.choices[0].message.content;
+
+  /*
+  const completion = await openai.createCompletion({
+    model: "text-davinci-002",
+    prompt: prompt,
+    temperature: 0.7,
+    max_tokens: 256,
+  },
+  {
+    adapter: fetchAdapter,
+  });
+
+    return completion.data.choices[0].text;
+  */
 }
 
 // This can be turned off if the account has run out of money or if some other issue has come up
 const AI_SUMMARY_ENABLED = false;
+
 async function sendWebHook(request, manifest, env) {
-    let { content, name, version, reporter, exception, dhash } = request;
+  let {content, name, version, reporter, exception, dhash} = request;
 
-    var condensed = "User Feedback";
-    if (AI_SUMMARY_ENABLED && content.length > 10 && content.length < 1200) {
-        try
-        {
-            const aiCondensed = await condenseText(content, env.OPENAI_TOKEN);
-            if (!checkForbidden(aiCondensed))
-            {
-                condensed = aiCondensed; //.replace(/(\r\n|\n|\r)/gm, "");
-            }
-        }
-        catch(e)
-        {
-            console.log("Couldn't condense text");
-            console.log(e);
-            condensed = "Couldn't condense";
-        }
+  var condensed = "User Feedback";
+  if (AI_SUMMARY_ENABLED && content.length > 10 && content.length < 1200) {
+    try {
+      const aiCondensed = await condenseText(content, env.OPENAI_TOKEN);
+      if (!checkForbidden(aiCondensed)) {
+        condensed = aiCondensed; //.replace(/(\r\n|\n|\r)/gm, "");
+      }
+    } catch (e) {
+      console.log("Couldn't condense text");
+      console.log(e);
+      condensed = "Couldn't condense";
     }
+  }
 
-    let body = {
-        "content": `${name}: ${condensed}`,
-        "allowed_mentions": {
-            "parse": []
+  let body = {
+    "content": `${name}: ${condensed}`,
+    "allowed_mentions": {
+      "parse": []
+    },
+    "embeds": [
+      {
+        "title": "Feedback for " + name,
+        "description": content,
+        "color": 0xAC4338,
+        "timestamp": new Date().toISOString(),
+        "thumbnail": {
+          "url": manifest.IconUrl || "https://raw.githubusercontent.com/goatcorp/DalamudPluginsD17/main/stable/" + name + "/images/icon.png"
         },
-        "embeds": [
-            {
-                "title": "Feedback for " + name,
-                "description": content,
-                "color": 0xAC4338,
-                "timestamp": new Date().toISOString(),
-                "thumbnail": {
-                    "url": manifest.IconUrl || "https://raw.githubusercontent.com/goatcorp/DalamudPluginsD17/main/stable/" + name + "/images/icon.png"
-                },
-                "fields": [
-                    {
-                        "name": "Plugin Version",
-                        "value": version,
-                        "inline": true
-                    },
-                    {
-                        "name": "Dalamud Version",
-                        "value": dhash,
-                        "inline": true
-                    }
-                ]
-            }
+        "fields": [
+          {
+            "name": "Plugin Version",
+            "value": version,
+            "inline": true
+          },
+          {
+            "name": "Dalamud Version",
+            "value": dhash,
+            "inline": true
+          }
         ]
+      }
+    ]
+  };
+
+  if (reporter) {
+    body.embeds[0].author = {
+      "name": reporter
     };
+  }
 
-    if (reporter) {
-        body.embeds[0].author = {
-            "name": reporter
-        };
-    }
+  if (exception) {
+    body.embeds[0].fields[1] = {
+      "name": "Exception",
+      "value": "```" + exception.substring(0, 950) + "```"
+    };
+  }
 
-    if (exception) {
-        body.embeds[0].fields[1] = {
-            "name": "Exception",
-            "value": "```" + exception.substring(0, 950) + "```"
-        };
-    }
+  const init = {
+    body: JSON.stringify(body),
+    method: "POST",
+    headers: {
+      "content-type": "application/json;charset=UTF-8",
+    },
+  }
 
-    const init = {
-        body: JSON.stringify(body),
-        method: "POST",
-        headers: {
-            "content-type": "application/json;charset=UTF-8",
-        },
-    }
-
-    const feedbackUrl = manifest.FeedbackUrl || env.DEFAULT_WEBHOOK;
-
-    const response = await fetch(feedbackUrl, init)
-    return response.status === 204;
+  const response = await fetch(env.DEFAULT_WEBHOOK, init)
+  return response.status === 204;
 }
 
 export default {
-    async fetch(request, env) {
-        if (request.method === "POST") {
-            return handleRequest(request, env);
-        }
-        else if (request.method === "GET") {
-            return new Response(`unsupported`, { status: 400 });
-        }
-    },
+  async fetch(request, env) {
+    if (request.method === "POST") {
+      return handleRequest(request, env);
+    } else if (request.method === "GET") {
+      return new Response(`unsupported`, {status: 400});
+    }
+  },
 };
