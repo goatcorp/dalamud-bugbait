@@ -225,12 +225,12 @@ async function sendWebHook(content, name, version, reporter, reporterId, excepti
 
   if (reporter && !checkForbidden(reporter)) {
     body.embeds[0].author["name"] = reporter;
-  } else if (reporterIp != null) {
-    body.embeds[0].author["name"] = `Anonymous Reporter ${reporterIp}`;
+  } else if (reporterId != null) {
+    body.embeds[0].author["name"] = `Anonymous Reporter ${reporterId}`;
   }
 
-  if (reporterIp != null) {
-    body.embeds[0].author["icon_url"] = getAvatarUrl(reporterIp);
+  if (reporterId != null) {
+    body.embeds[0].author["icon_url"] = getAvatarUrl(reporterId);
   }
 
   if (exception && !checkForbidden(exception)) {
