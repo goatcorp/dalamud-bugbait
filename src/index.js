@@ -10,7 +10,6 @@
 
 import { OpenAIApi, Configuration } from "openai";
 import fetchAdapter from "@vespaiach/axios-fetch-adapter";
-import "crypto" from "crypto"
 
 async function readRequestBody(request) {
   const { headers } = request
@@ -28,14 +27,24 @@ function checkForbidden(input) {
   return input.includes("@everyone") || input.includes("@here") || input.includes("<@");
 }
 
-function getHashedIp(request, env) {
+async function hashText(content, algorithm = "SHA-256") {
+  const dataArr = new TextEncoder().encode(content);
+  const digest = await crypto.subtle.digest({ name: algorithm }, dataArr);
+  
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function getHashedIp(request, env) {
   var ipAddr = request.headers.get('cf-connecting-ip');
   if (ipAddr == null) {
     return null;
   }
 
   const secret = env.get('AVATAR_PEPPER') || "A_Really_Bad_Pepper_95CCD5A2A352";
-  return crypto.createHash('sha256').update(`BUGBAIT{user=${ipAddr},secret=${secret}}`).digest('hex').slice(-8);
+  const hexDigest = await hashText(`BUGBAIT{user=${ipAddr},secret=${secret}}`);
+  return hexDigest.slice(-8);
 }
 
 function getAvatarUrl(seed) {
@@ -108,12 +117,14 @@ async function handleRequest(request, env) {
     return new Response();
   }
 
+  let reporterId = await getHashedIp(request, env);
+
   let res = await sendWebHook(
     reqBody.content, 
     reqBody.name, 
     reqBody.version, 
     reqBody.reporter, 
-    getHashedIp(request, env), 
+    reporterId, 
     reqBody.exception, 
     reqBody.dhash, 
     env
