@@ -206,10 +206,10 @@ async function sendWebHook(content, name, version, reporter, exception, dhash, e
   }
 
   if (exception && !checkForbidden(exception)) {
-    body.embeds[0].fields[1] = {
+    body.embeds[0].fields.push({
       "name": "Exception",
       "value": "```" + exception.substring(0, 950) + "```"
-    };
+    });
   }
 
   const init = {
