@@ -1,3 +1,6 @@
 name = "dalamud-bugbait"
+# If changing this compatibility date, make sure to also update
+# the @cloudflare/workers-types in tsconfig.json as described
+# in https://github.com/cloudflare/workerd/tree/main/npm/workers-types#compatibility-dates
 compatibility_date = "2022-06-21"
 main = "src/index.ts"
