@@ -42,7 +42,7 @@ async function getHashedIp(request, env) {
     return null;
   }
 
-  const secret = env.get('AVATAR_PEPPER') || "A_Really_Bad_Pepper_95CCD5A2A352";
+  const secret = env.AVATAR_PEPPER || "A_Really_Bad_Pepper_95CCD5A2A352";
   const hexDigest = await hashText(`BUGBAIT{user=${ipAddr},secret=${secret}}`);
   return hexDigest.slice(-8);
 }
