@@ -27,30 +27,6 @@ function checkForbidden(input) {
   return input.includes("@everyone") || input.includes("@here") || input.includes("<@");
 }
 
-async function hashText(content, algorithm = "SHA-256") {
-  const dataArr = new TextEncoder().encode(content);
-  const digest = await crypto.subtle.digest({ name: algorithm }, dataArr);
-  
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function getHashedIp(request, env) {
-  var ipAddr = request.headers.get('cf-connecting-ip');
-  if (ipAddr == null) {
-    return null;
-  }
-
-  const secret = env.get('AVATAR_PEPPER') || "A_Really_Bad_Pepper_95CCD5A2A352";
-  const hexDigest = await hashText(`BUGBAIT{user=${ipAddr},secret=${secret}}`);
-  return hexDigest.slice(-8);
-}
-
-function getAvatarUrl(seed) {
-  return `https://api.dicebear.com/9.x/identicon/png?size=64&backgroundType=gradientLinear&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&seed=${seed}`;
-}
-
 // Each element in this array is a "test set", consisting of one or more tests to run again the received feedback.
 // If ANY test set passes, the feedback is silently dropped. A success response is returned to the client,
 // but the feedback in question is not actually sent out.
@@ -117,18 +93,7 @@ async function handleRequest(request, env) {
     return new Response();
   }
 
-  let reporterId = await getHashedIp(request, env);
-
-  let res = await sendWebHook(
-    reqBody.content, 
-    reqBody.name, 
-    reqBody.version, 
-    reqBody.reporter, 
-    reporterId, 
-    reqBody.exception, 
-    reqBody.dhash, 
-    env
-  );
+  let res = await sendWebHook(reqBody.content, reqBody.name, reqBody.version, reqBody.reporter, reqBody.exception, reqBody.dhash, env);
   
   if (res == true) {
     return new Response();
@@ -185,7 +150,7 @@ async function condenseText(body, token) {
 
 // This can be turned off if the account has run out of money or if some other issue has come up
 const AI_SUMMARY_ENABLED = false;
-async function sendWebHook(content, name, version, reporter, reporterId, exception, dhash, env) {
+async function sendWebHook(content, name, version, reporter, exception, dhash, env) {
   var condensed = "User Feedback";
   if (AI_SUMMARY_ENABLED && content.length > 10 && content.length < 1200) {
     try 
@@ -213,9 +178,6 @@ async function sendWebHook(content, name, version, reporter, reporterId, excepti
       {
         "title": "Feedback for " + name,
         "description": content,
-        "author": {
-          "name": "Unknown Reporter"
-        },
         "color": 11289400,
         "timestamp": new Date().toISOString(),
         "thumbnail": {
@@ -238,13 +200,9 @@ async function sendWebHook(content, name, version, reporter, reporterId, excepti
   };
 
   if (reporter && !checkForbidden(reporter)) {
-    body.embeds[0].author["name"] = reporter;
-  } else if (reporterId != null) {
-    body.embeds[0].author["name"] = `Anonymous Reporter ${reporterId}`;
-  }
-
-  if (reporterId != null) {
-    body.embeds[0].author["icon_url"] = getAvatarUrl(reporterId);
+    body.embeds[0].author = {
+      "name": reporter
+    };
   }
 
   if (exception && !checkForbidden(exception)) {
