@@ -21,6 +21,8 @@ jobs:
           secrets: |
               DEFAULT_WEBHOOK
               OPENAI_TOKEN
+              AVATAR_PEPPER
         env:
           DEFAULT_WEBHOOK: ${{ secrets.DEFAULT_WEBHOOK }}
           OPENAI_TOKEN: ${{ secrets.OPENAI_TOKEN }}
+          AVATAR_PEPPER: ${{ secrets.AVATAR_PEPPER }}
