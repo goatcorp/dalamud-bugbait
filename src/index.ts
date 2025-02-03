@@ -8,35 +8,38 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
+import { Env, Feedback } from "./types";
+import { APIEmbed, RESTPostAPIWebhookWithTokenJSONBody } from 'discord-api-types/v10';
+
 import { OpenAIApi, Configuration } from "openai";
 import fetchAdapter from "@vespaiach/axios-fetch-adapter";
 
-async function readRequestBody(request) {
+async function readRequestBody(request: Request) {
   const { headers } = request
   const contentType = headers.get("content-type") || ""
 
   if (contentType.includes("application/json")) {
-    return await request.json();
+    return request.json();
   }
   else {
     return null;
   }
 }
 
-function checkForbidden(input) {
+function checkForbidden(input: string) {
   return input.includes("@everyone") || input.includes("@here") || input.includes("<@");
 }
 
-async function hashText(content, algorithm = "SHA-256") {
+async function hashText(content: string, algorithm = "SHA-256") {
   const dataArr = new TextEncoder().encode(content);
   const digest = await crypto.subtle.digest({ name: algorithm }, dataArr);
-  
+
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
 
-async function getHashedIp(request, env) {
+async function getHashedIp(request: Request, env: Env) {
   var ipAddr = request.headers.get('cf-connecting-ip');
   if (ipAddr == null) {
     return null;
@@ -47,7 +50,7 @@ async function getHashedIp(request, env) {
   return hexDigest.slice(-8);
 }
 
-function getAvatarUrl(seed) {
+function getAvatarUrl(seed: string) {
   return `https://api.dicebear.com/9.x/identicon/png?size=64&backgroundType=gradientLinear&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&seed=${seed}`;
 }
 
@@ -81,14 +84,14 @@ const SILENT_FEEDBACK_BLOCK_TESTS = [
   /^\s*\.+\s*$/u, // ".", "...", etc
   /^\s*-?n\/?a-?\s*$/ui, // "na", "-na", "n/a", "-n/a", etc
 ];
-function isFeedbackSilentlyIgnored(feedbackObject) {
-  const runSingleTest = (fb, test) => {
+function isFeedbackSilentlyIgnored(feedbackObject: Feedback) {
+  const runSingleTest = (fb: Feedback, test: ((fb: Feedback) => boolean) | string | RegExp) => {
     if (typeof test == "function")
       return test(fb);
     if (typeof test == "string")
-      return fb.reporter.toLowerCase().includes(test);
+      return fb.reporter && fb.reporter.toLowerCase().includes(test);
     if (RegExp.prototype.isPrototypeOf(test))
-      return test.test(fb.reporter);
+      return fb.reporter && test.test(fb.reporter);
     return false; // invalid test types are silently ignored and do not "pass"
   };
   return SILENT_FEEDBACK_BLOCK_TESTS.some(testSet => {
@@ -98,8 +101,8 @@ function isFeedbackSilentlyIgnored(feedbackObject) {
   });
 }
 
-async function handleRequest(request, env) {
-  const reqBody = await readRequestBody(request)
+async function handleRequest(request: Request, env: Env) {
+  const reqBody = await readRequestBody(request) as Feedback;
 
   if (!reqBody) {
     return new Response(`no body`, { status: 400 });
@@ -120,16 +123,16 @@ async function handleRequest(request, env) {
   let reporterId = await getHashedIp(request, env);
 
   let res = await sendWebHook(
-    reqBody.content, 
-    reqBody.name, 
-    reqBody.version, 
-    reqBody.reporter, 
-    reporterId, 
-    reqBody.exception, 
-    reqBody.dhash, 
+    reqBody.content,
+    reqBody.name,
+    reqBody.version,
+    reqBody.reporter,
+    reporterId,
+    reqBody.exception,
+    reqBody.dhash,
     env
   );
-  
+
   if (res == true) {
     return new Response();
   }
@@ -138,7 +141,7 @@ async function handleRequest(request, env) {
   }
 }
 
-async function condenseText(body, token) {
+async function condenseText(body: string, token: string) {
   const configuration = new Configuration({
     apiKey: token,
   });
@@ -166,7 +169,9 @@ async function condenseText(body, token) {
   });
 
   //console.log(compl);
-  return compl.data.choices[0].message.content;
+
+  // We *want* this method to throw if we can't access this so suppress the null check with !
+  return compl.data.choices[0].message!.content;
 
   /*
   const completion = await openai.createCompletion({
@@ -185,10 +190,19 @@ async function condenseText(body, token) {
 
 // This can be turned off if the account has run out of money or if some other issue has come up
 const AI_SUMMARY_ENABLED = false;
-async function sendWebHook(content, name, version, reporter, reporterId, exception, dhash, env) {
+async function sendWebHook(
+  content: string,
+  name: string,
+  version: string,
+  reporter: string | null,
+  reporterId: string | null,
+  exception: string | null,
+  dhash: string,
+  env: Env
+) {
   var condensed = "User Feedback";
   if (AI_SUMMARY_ENABLED && content.length > 10 && content.length < 1200) {
-    try 
+    try
     {
       const aiCondensed = await condenseText(content, env.OPENAI_TOKEN);
       if (!checkForbidden(aiCondensed))
@@ -204,51 +218,50 @@ async function sendWebHook(content, name, version, reporter, reporterId, excepti
     }
   }
 
-  let body = {
+  const embed: APIEmbed = {
+    "title": "Feedback for " + name,
+    "description": content,
+    "author": {
+      "name": "Unknown Reporter"
+    },
+    "color": 11289400,
+    "timestamp": new Date().toISOString(),
+    "thumbnail": {
+      "url": "https://raw.githubusercontent.com/goatcorp/DalamudPluginsD17/main/stable/" + name + "/images/icon.png"
+    },
+    "fields": [
+      {
+        "name": "Plugin Version",
+        "value": version,
+        "inline": true
+      },
+      {
+        "name": "Dalamud Version",
+        "value": dhash,
+        "inline": true
+      }
+    ]
+  };
+  const body: RESTPostAPIWebhookWithTokenJSONBody = {
     "content": `${name}: ${condensed}`,
     "allowed_mentions": {
       "parse": []
     },
-    "embeds": [
-      {
-        "title": "Feedback for " + name,
-        "description": content,
-        "author": {
-          "name": "Unknown Reporter"
-        },
-        "color": 11289400,
-        "timestamp": new Date().toISOString(),
-        "thumbnail": {
-          "url": "https://raw.githubusercontent.com/goatcorp/DalamudPluginsD17/main/stable/" + name + "/images/icon.png"
-        },
-        "fields": [
-          {
-            "name": "Plugin Version",
-            "value": version,
-            "inline": true
-          },
-          {
-            "name": "Dalamud Version",
-            "value": dhash,
-            "inline": true
-          }
-        ]
-      }
-    ]
+    "embeds": [embed]
   };
 
   if (reporter && !checkForbidden(reporter)) {
-    body.embeds[0].author["name"] = reporter;
+    embed.author!.name = reporter;
   } else if (reporterId != null) {
-    body.embeds[0].author["name"] = `Anonymous Reporter ${reporterId}`;
+    embed.author!.name = `Anonymous Reporter ${reporterId}`;
   }
 
   if (reporterId != null) {
-    body.embeds[0].author["icon_url"] = getAvatarUrl(reporterId);
+    embed.author!.icon_url = getAvatarUrl(reporterId);
   }
 
   if (exception && !checkForbidden(exception)) {
-    body.embeds[0].fields.push({
+    embed.fields!.push({
       "name": "Exception",
       "value": "```" + exception.substring(0, 950) + "```"
     });
@@ -266,7 +279,7 @@ async function sendWebHook(content, name, version, reporter, reporterId, excepti
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request: Request, env: Env) {
     if (request.method === "POST") {
       return handleRequest(request, env);
     }
