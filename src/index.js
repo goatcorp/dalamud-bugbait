@@ -213,6 +213,9 @@ async function sendWebHook(content, name, version, reporter, reporterId, excepti
       {
         "title": "Feedback for " + name,
         "description": content,
+        "author": {
+          "name": "Unknown Reporter"
+        },
         "color": 11289400,
         "timestamp": new Date().toISOString(),
         "thumbnail": {
