@@ -135,7 +135,7 @@ async function handleRequest(request: Request, env: Env) {
 
   let reporterId = await getHashedIp(request, env);
 
-  if (isBlockedReporter(reporterId)) {
+  if (reporterId != null && isBlockedReporter(reporterId)) {
     return new Response();
   }
 
