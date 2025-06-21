@@ -101,6 +101,13 @@ function isFeedbackSilentlyIgnored(feedbackObject: Feedback) {
   });
 }
 
+const BLOCKED_REPORTER_IDS = [
+  "9fc6526d"
+];
+function isBlockedReporter(reporterId: string) {
+  return BLOCKED_REPORTER_IDS.includes(reporterId);
+}
+
 async function handleRequest(request: Request, env: Env) {
   const reqBody = await readRequestBody(request) as Feedback;
 
@@ -121,6 +128,10 @@ async function handleRequest(request: Request, env: Env) {
   }
 
   let reporterId = await getHashedIp(request, env);
+
+  if (isBlockedReporter(reporterId) {
+    return new Response();
+  }
 
   let res = await sendWebHook(
     reqBody.content,
