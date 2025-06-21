@@ -106,6 +106,12 @@ const BLOCKED_REPORTER_IDS = [
 ];
 function isBlockedReporter(reporterId: string) {
   return BLOCKED_REPORTER_IDS.includes(reporterId);
+  /***
+  * alternatively, if CF workers support env vars or some other list
+  * we can use NotNite's approach.
+  * const bannedReporters = env.BANNED_REPORTERS.split(",");
+  * return bannedReporters.includes(reporterId);
+  */
 }
 
 async function handleRequest(request: Request, env: Env) {
@@ -129,7 +135,7 @@ async function handleRequest(request: Request, env: Env) {
 
   let reporterId = await getHashedIp(request, env);
 
-  if (isBlockedReporter(reporterId) {
+  if (isBlockedReporter(reporterId)) {
     return new Response();
   }
 
