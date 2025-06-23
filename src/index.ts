@@ -101,6 +101,19 @@ function isFeedbackSilentlyIgnored(feedbackObject: Feedback) {
   });
 }
 
+const BLOCKED_REPORTER_IDS = [
+  "9fc6526d"
+];
+function isBlockedReporter(reporterId: string) {
+  return BLOCKED_REPORTER_IDS.includes(reporterId);
+  /***
+  * alternatively, if CF workers support env vars or some other list
+  * we can use NotNite's approach.
+  * const bannedReporters = env.BANNED_REPORTERS.split(",");
+  * return bannedReporters.includes(reporterId);
+  */
+}
+
 async function handleRequest(request: Request, env: Env) {
   const reqBody = await readRequestBody(request) as Feedback;
 
@@ -121,6 +134,10 @@ async function handleRequest(request: Request, env: Env) {
   }
 
   let reporterId = await getHashedIp(request, env);
+
+  if (reporterId != null && isBlockedReporter(reporterId)) {
+    return new Response();
+  }
 
   let res = await sendWebHook(
     reqBody.content,
