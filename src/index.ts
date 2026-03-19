@@ -122,8 +122,7 @@ async function handleRequest(request: Request, env: Env) {
     return new Response(`no body`, { status: 400 });
   }
 
-  //  TODO: Enforce platform is defined here after some time has passed.
-  if (!reqBody.content || !reqBody.version || !reqBody.name || !reqBody.dhash) {
+  if (!reqBody.content || !reqBody.version || !reqBody.name || !reqBody.platform || !reqBody.dhash) {
     return new Response(`no content`, { status: 400 });
   }
 
@@ -214,7 +213,7 @@ async function sendWebHook(
   content: string,
   name: string,
   version: string,
-  platform: string | null,
+  platform: string,
   reporter: string | null,
   reporterId: string | null,
   exception: string | null,
@@ -263,7 +262,7 @@ async function sendWebHook(
       },
       {
         "name": "Platform",
-        "value": platform ?? "Unknown",
+        "value": platform,
         "inline": true
       }
     ]
