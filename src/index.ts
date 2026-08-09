@@ -301,6 +301,16 @@ async function sendWebHook(
     },
   }
   const response = await fetch(env.DEFAULT_WEBHOOK, init)
+
+  try {
+    await fetch(env.PACBOT_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        pluginname: name,
+        token: env.PACBOT_TOKEN,
+      })
+    });
+  } catch(e) {}
   return response.status === 204;
 }
 

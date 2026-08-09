@@ -2,6 +2,8 @@ export interface Env {
   OPENAI_TOKEN: string;
   AVATAR_PEPPER: string;
   DEFAULT_WEBHOOK: string;
+  PACBOT_URL: string;
+  PACBOT_TOKEN: string;
 }
 
 // Based on FeedbackModel from
